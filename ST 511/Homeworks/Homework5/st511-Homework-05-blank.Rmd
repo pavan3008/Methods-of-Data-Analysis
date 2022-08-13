@@ -1,0 +1,488 @@
+---
+title: "ST 411/511 Homework 5"
+author: "Pavan Sai Nallagoni"
+date: "Summer 2022"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(ggplot2)
+```
+
+# Instructions
+
+This assignment is due by 11:59 PM, August 9th on Canvas via Gradescope. **You should submit your assignment as a PDF which you can compile using the provide .Rmd (R Markdown) template.** 
+
+> Note: Create a PDF by either compiling a PDF directly (via LaTeX) or from a Word Doc. Do not submit a PDF of the HTML output as they're cumbersome and difficult to read.
+
+Include your code in your solutions and indicate where the solutions for individual problems are located when uploading into Gradescope (Failure to do so will result in point deductions). You should also write complete, grammatically correct sentences for your solutions.
+
+Once you've completed the assignment, and before you submit it to Gradescope, you should read the document to ensure that (1) The computed values show up in the document, (2) the document "looks nice" (i.e. doesn't have extraneous code/outputs and includes _just_ the essentials), and (3) ensure the document is "easy" to read.
+
+#### Goals:
+
+1. Practice computing the different "pieces" we need to compute to conduct an ANOVA test.
+2. Demonstrate the connections between ANOVA as a test of population means and as a method for model comparison.
+3. Get hands on experience conducting ANOVA and Kruskal-Wallis tests.
+4. Practice using linear combinations of means to answer scientific questions of interest.
+5. Learn how to perform different methods of multiple comparison procedures with R.
+
+```{r, include=FALSE}
+# Load libraries we need for the assignment
+library(ggplot2)
+library(Sleuth3)
+```
+
+```{r, include = FALSE}
+# Note: You may need to install the `multcomp` package if you haven't done so already.
+library(multcomp)
+```
+
+
+\newpage
+## Question 1 (7 points)
+The table below shows a partially completed ANOVA table. (Note: if you are looking at this in RStudio it may be helpful to knit the file to properly view the table.)
+
+| Source of Variation | Sum of Squares | Degrees of Freedom | Mean Square | F-statistic | p-value |
+|:--------------------|:---------------|:-------------------|:------------|:------------|:--------|
+| Between Groups      |         .      |         .          |      .      |       .     |    .    |
+| Within Groups       |      35088     |        24          |      .      |             |         |
+| Total               |      70907     |        31          |             |             |         |
+
+### (a) (1 point) How many groups were there? 
+
+<!-- Write your answer as a complete sentence and include how you came to your answer. -->
+Degrees of Freedom for Within groups: n - I = 24 --> eq (1)
+
+Degrees of Freedom for Total groups: n - 1 = 31  --> eq (2)
+
+where n is total observations and I is the number of groups
+
+From eq (2) - eq (1),
+
+$(n - 1) - (n - I) = 31 - 24$
+
+$n - 1 - n + I = 7$
+
+$I - 1 = 7$
+
+$I = 8$
+
+
+Therefore, the number of groups are ($I$): $8$.  
+ 
+
+### (b) (4 points) Fill in the rest of the table. Values to be calculated are indicated by a "." Please show how you compute the values for your calculations.
+
+<!-- Show how you compute each value below, but replace the "." values of the table with the computed values -->
+```{r}
+SST <- 70907
+SSW <- 35088
+SSB <- SST - SSW
+SSB
+
+I <- 8
+dfW <- 24
+dfT <- 31
+dfB <- I - 1
+dfB
+
+MSW <- SSW / dfW
+MSW
+MSB <- SSB / dfB
+MSB
+
+F_statistic <- MSB / MSW
+F_statistic
+
+p_value <- 1-pf(F_statistic, df1=dfB, df2=dfW)
+p_value
+```
+
+Replacing values in the table:
+
+
+| Source of Variation | Sum of Squares | Degrees of Freedom | Mean Square | F-statistic |    p-value    |
+|:--------------------|:---------------|:-------------------|:------------|:------------|:--------------|
+| Between Groups      |      35819     |         7          |   5117      |     3.5     |  0.009941808  |
+| Within Groups       |      35088     |        24          |   1462      |             |               |
+| Total               |      70907     |        31          |             |             |               |
+
+### (c) (2 points) What is your conclusion from the one-way ANOVA analysis? State the hypothesis you are testing and what your decision/strength of evidence are.
+
+<!-- Summarize your test: (1) State the hypotheses tests and (2) write a thorough conclusion (Remember to report relevant details such as the value of the test statistic, the significance level, etc), whether you reject/fail to reject, and what your conclusion means in terms of the variability of your distributions. -->
+Null Hypothesis: $H_0: \mu_1=\mu_2=\cdots =\mu_I$. All the population means are equal 
+
+Alternative Hypothesis: $H_A: \mu_i\neq\mu_j$ At least two population means are different.
+
+*Conclusion:*
+
+The value of the test statistic is $F-statistic = 3.5$ and the $p-value = 0.009941808$. We reject the null hypothesis $H_0: \mu_1=\mu_2=\cdots =\mu_I$ since the obtained $p-value = 0.009941808$ is much lesser than the significance level $(\alpha = 0.05)$ (assumption), in favor of alternative hypothesis. So basically $p-value$ is close to 0 and we have a strong evidence that we reject the null hypothesis and can conclude that at least two population means are different.
+
+
+
+\newpage
+## Question 2 (9 points) - Modified from *Sleuth* 5.25
+The data file `ex0525` contains annual incomes in 2005 of a random sample of 2,584 Americans who were selected for the National Longitudinal Survey of Youth in 1979 and who had paying jobs in 2005. The data set also includes a code for the number of years of education that each individual had completed by 2006: <12, 12, 13-15, 16, and >16. Perform an analysis of variance *by hand* (i.e. not using the built-in anova functions like `lm()` and `anova()`) to assess whether or not the population mean 2005 incomes were the same in all five education groups. Work through the following steps:
+
+### (a) (1 point) Create a side-by-side boxplot of 2005 income grouped by education category.
+
+```{r}
+data(ex0525)
+names(ex0525)
+ggplot(ex0525, aes(x=Educ, y=Income2005)) + 
+  geom_boxplot(fill = "red", alpha = 0.5) +
+  labs(y = "Income 2005", x = "Education") +
+  theme_bw()
+```
+
+
+### (b) (2 points) Find the grand mean and the mean of each of the five education groups.
+
+<!-- Compute the value by hand or by using R code (Not the anova() or aov() functions) -->
+```{r}
+grandmean <- mean(ex0525$Income2005)
+grandmean
+
+# <12, 12, 13-15, 16, and >16
+mean_less_12 <- mean(ex0525$Income2005[ex0525$Educ == "<12"])
+mean_less_12
+
+mean_12 <- mean(ex0525$Income2005[ex0525$Educ == "12"])
+mean_12
+
+mean_13_15 <- mean(ex0525$Income2005[ex0525$Educ == "13-15"])
+mean_13_15
+ 
+mean_16 <- mean(ex0525$Income2005[ex0525$Educ == "16"])
+mean_16
+ 
+mean_greater_16 <- mean(ex0525$Income2005[ex0525$Educ == ">16"])
+mean_greater_16
+
+```
+
+### (c) (2 points) Find the sums of squares between and within groups.
+
+<!-- Compute the value by hand or by using R code (Not the anova() or aov() functions) -->
+```{r}
+# Create a vector by group
+groupmeans <- c(mean_less_12, mean_12, mean_13_15, mean_16, mean_greater_16)
+
+# sums of squares within group
+SSW_2 <- sum((ex0525$Income2005[ex0525$Educ == "<12"]-groupmeans[1])^2) +
+  sum((ex0525$Income2005[ex0525$Educ == "12"]-groupmeans[2])^2) +
+  sum((ex0525$Income2005[ex0525$Educ == "13-15"]-groupmeans[3])^2) +
+  sum((ex0525$Income2005[ex0525$Educ == "16"]-groupmeans[4])^2) +
+  sum((ex0525$Income2005[ex0525$Educ == ">16"]-groupmeans[5])^2)
+SSW_2
+
+# sums of squares between group = total - within
+SST_2 <- sum((ex0525$Income2005 - grandmean)^2)
+SST_2
+SSB_2 <- SST_2 - SSW_2
+SSB_2
+```
+
+
+### (d) (1 point) Find the mean squares between and within groups.
+
+<!-- Compute the value by hand or by using R code (Not the anova() or aov() functions) -->
+```{r}
+n_2 <- nrow(ex0525)
+I_2 <- 5
+dfW_2 <- n_2 - I_2
+dfB_2 <- I_2 - 1
+
+MSW_2 <- SSW_2 / dfW_2
+MSW_2
+MSB_2 <- SSB_2 / dfB_2
+MSB_2
+```
+
+
+### (e) (1 point) Find the $F$-statistic and $p$-value.
+
+<!-- Compute the value by hand or by using R code (Not the anova() or aov() functions) -->
+```{r}
+F_statistic_2 <- MSB_2 / MSW_2
+F_statistic_2
+
+p_value_2 <- 1-pf(F_statistic_2, df1=dfB_2, df2=dfW_2)
+p_value_2
+```
+
+
+### (f) (1 point) State the conclusion of your test.
+
+<!-- Summarize your test: (1) State the hypotheses tests and (2) write a thorough conclusion (Remember to report relevant details such as the value of the test statistic, the significance level, etc), whether you reject/fail to reject, and what your conclusion means in terms of the variability of your distributions. -->
+Null Hypothesis: $H_0: \mu_{>12}=\mu_{12}=\mu_{13-15}=\mu_{16}=\mu_{>16}$. All the population means (Edu with age: <12, 12, 13-15, 16, and >16) are equal.
+
+Alternative Hypothesis: $H_A: \mu_i\neq\mu_j$ At least two population means are different where $i,j \in <12, 12, 13-15, 16, >16$ and $i \neq j$.
+
+The test statistic value $F_statistic = 89.61282$ and $p$-value is very, very small -- so close to zero that 0 gets printed out due to rounding. We would reject the null hypothesis that the population mean Income2005 are all the same in favor of alternative hypothesis. It appears that at least one of the population mean Income2005 is different from the others.
+
+
+
+### (g) (1 point) We can also state things we have calculated in the "model testing/comparison" framework (You should not need to calculate anything new for this part). What is the extra sum of squares? What is the pooled variance?
+
+<!-- Write out what the values of the extra sum of squares and pooled variance.  -->
+Extra sum of squares = Sum of squares (Reduced) - Sum of squares (Full) = SST - SSW = Sum of squares between (SSB)
+
+Therefore, the extra sum of squares is equal to $688235137516$.
+
+The mean sum of squares (Full) = MSW is same as pooled variance.
+
+Therefore, the pooled variance is equal to $1920024320$.
+
+
+\newpage
+## Question 3 (9 points) -  from *Sleuth* 5.23
+
+**Was Tyrannosaurus Rex warm-blooded?** Several measurements of the oxygen isotopic composition of bone phosphate in each of 12 bone specimens from a single *Tyrannosaurus rex* skeleton were taken. It is known that the oxygen isotopic composition of vertebrate bone phosphate is related to the body temperature at which the bone forms. Differences in means at different bone sites would indicate non-constant temperatures throughout the body. Minor temperature differences would be expected in warm-blooded animals. Is there evidence that the means are different for the different bones? The data are in `ex0523` in the `Sleuth3` library.
+
+### (a) (2 points) Plot the oxygen isotopic composition for each of the bones using a side-by-side boxplot. Comment on whether or not you think the population means are the same for all 12 bones based on your plot.
+
+```{r}
+data(ex0523)
+ggplot(ex0523, aes(x=Bone, y=Oxygen)) + 
+  geom_boxplot(fill = "red", alpha = 0.5) +
+  labs(y = "Oxygen", x = "Bone") +
+  theme_bw()
+```
+
+<!-- Write a few sentences if you think, or don't think, that the population means are the same for all 12 bones. If you think they're different, which do you think are different? If you think they're all similar, why do you think that? -->
+
+From the above boxplot, it is clear that the population means are not the same for all 12 bones since the means of each of the 12 bones are completely different from one another i.e., Bone1 is completely different from (Bone 6,7,8,9,12), Bone12 is completely different from the rest of the Bones and similarly, for others. Therefore, all the population mean oxygen isotopic compositions are not the same in the 12 bone types.
+
+### (b) (2 points) Perform an analysis of variance to test whether or not all the population mean oxygen isotopic compositions are the same in the 12 bone types. State your $p$-value and conclusion of the test. You may use the built-in ANOVA functions in R.
+
+```{r}
+anova(lm(Oxygen ~ Bone, data=ex0523))
+```
+
+<!-- Summarize your test: (1) State the hypotheses tests and (2) write a thorough conclusion (Remember to report relevant details such as the value of the test statistic, the significance level, etc), whether you reject/fail to reject, and what your conclusion means in terms of the variability of your distributions. -->
+
+Null hypothesis: $H_0: \mu_{0}=\mu_{1}=\mu_{2}=\mu_{3}=\mu_{4}=\mu_{5}=\mu_{6}=\mu_{7}=\mu_{8}=\mu_{9}=\mu_{10}=\mu_{11}=\mu_{12}$. All the population mean oxygen isotopic compositions are the same in the 12 bone types
+
+Alternative hypothesis: $H_A:\mu_{i}=\mu_{j}$ where $i,j \in [1,12]$ and $i \neq j$ At least two of the population mean oxygen isotopic compositions in the 12 bone types are not the same.
+
+*Conclusion:*
+
+The test statistic $F-value = 7.4268$ and $p-value = 9.73e-07$. We reject the null hypothesis that all the population mean oxygen isotopic compositions are the same in the 12 bone types since the $p-value = 9.73e-07$ is much less than the significance level (0.05) and is nearly close to 0. Hence, we have sufficient evidence to conclude that the population mean oxygen isotopic compositions are not the same in the 12 bone types and there can be at least two of the population mean oxygen isotopic compositions in the 12 bone types that are not the same.
+
+
+### (c) (2 points) Assess the assumption that the population variances are the same in each group by creating a diagnostic plot using the residuals (See Lecture 18 for help with this). Does this assumption appear to have been met?
+
+```{r}
+mod <- lm(Oxygen ~ Bone, data=ex0523) 
+ex0523$fitted <- mod$fitted
+ex0523$resid <- mod$resid
+ggplot(ex0523, aes(x=fitted, y=resid, color=Bone)) + geom_point()
+
+```
+
+<!-- Write a few sentences commenting on whether or not the equal population variance assumption seems to be met. Justify your answer by discussing the plot -->
+Based on the above diagnostic plot, it is obvious that the equal population variance assumption doesn't met. We can notice that the variability for some groups is much larger/smaller than others i.e., variances of Bone7 is much larger than Bone1.
+
+### (d) (3 points) Perform a Kruskal-Wallis test using the `kruskal.test()` function. What do you conclude from this test? Compare your conclusion with your result from the analysis of variance in part (b).
+
+```{r}
+kruskal.test(Oxygen ~ Bone, data=ex0523)
+```
+
+<!-- Summarize your test: (1) State the hypotheses tests and (2) write a thorough conclusion (Remember to report relevant details such as the value of the test statistic, the significance level, etc), whether you reject/fail to reject, and what your conclusion means in terms of the variability of your distributions. -->
+Null hypothesis: $H_0:M{i} = M{j}$ where $i,j \in [1,12]$ and $i \neq j$. The population centers oxygen isotopic compositions are the same in the 12 bone types 
+
+Alternative hypothesis: $H_A:M{i} \neq M{j}$ where $i,j \in [1,12]$ and $i \neq j$. The population centers oxygen isotopic compositions centers of at least one of the groups is different. 
+
+*Conclusion:*
+The $p-value = 0.0002537$. We reject the null hypothesis that all the population centers oxygen isotopic compositions are the same in the 12 bone types since the $p-value = 0.0002537$ is much less than the significance level (0.05) and is nearly close to 0. Hence, we have sufficient evidence to conclude that the population centers of oxygen isotopic compositions are not the same in the 12 bone types. 
+
+
+<!-- Compare you results of this test with the ANOVA test in part (b). Is there a reason we should prefer one method vs. the other? -->
+Both the tests came to similar conclusions of rejecting the null hypothesis. However, if residual plots indicate a problem with the ANOVA assumptions (Or, if sample sizes are very small and normality is suspect), then we can use Kruskal-Wallis Nonparametric Analysis of Variance as an alternative to ANOVA where Kruskal-Wallis tests uses centers to determine the results.
+
+\newpage
+## Question 4 (4 points)
+
+### (a) (2 points) In comparing 10 groups, a researcher notices that the sample mean of group 7 is the largest and the sample mean of group 3 is the smallest. The researcher then decides to test the hypothesis that $\mu_7-\mu_3=0$. Why should a multiple comparison procedure be used even though there is only one comparison being made?
+
+<!-- Write 2-3 sentences which answers this question. -->
+The researchers compared 10 groups and found that the sample mean of group 7 is largest and the sample mean of group 3 is the smallest. However, if researchers want to test the hypothesis that $\mu_7-\mu_3=0$, they cannot simply do one comparison. There's a chance that the obtained results are not be significant since we have only one comparison where 3 and 7 may not be the smallest and largest, respectively. 
+
+Therefore, performing multiple comparison would give us more comparisons (with all the groups) and provides evidence of whether the sample mean of group 7 is the largest and the sample mean of group 3 is the smallest of all the 10 groups.
+
+Hence, researchers need to do a multiple comparison procedure even though there is only one comparison being made to get significant results and avoid Type I errors.
+
+
+
+### b) (2 points) When choosing coefficients for a contrast, does the choice of $\{C_1, C_2, \ldots, C_I\}$ give a different $t$-statistic than the choice of $\{4C_1, 4C_2, \ldots, 4C_I\}$? Explain why or why not.
+
+<!-- Write 2-3 sentences which answers this question. -->
+The change in the coefficients directly affects the value of $\gamma$ since it is dependent on the coefficients. If $\{C_1, C_2, \ldots, C_I\}$ gives the $\gamma$ a value of 1x then $\{4C_1, 4C_2, \ldots, 4C_I\}$ gives $\gamma$ a value of 4x i.e., 4 times the original. In addition, the Standard Error also changes since the variance is affected by the multiple of 4. Therefore, equivalent changes in the $\gamma$ (g) and Standard Error makes the overall change negligible. In other words, the multiple of 4 gets cancelled since it is common in both $\gamma$ (g) and Standard Error
+
+Hence, the choice of $\{C_1, C_2, \ldots, C_I\}$ gives a same $t$-statistic as the choice of $\{4C_1, 4C_2, \ldots, 4C_I\}$.
+
+
+\newpage
+## Question 5 (9 points) - Modified from *Sleuth* 6.17
+
+The relative head length (RHL) is measured for adders (a type of snake) on the Swedish mainland and on groups of islands in the Baltic Sea. Relative head length is adjusted for overall body length, determined separately for males and females. The data are below and additionally you know that the pooled estimate of standard deviation of the RHL measurements was 11.72 based on 230 degrees of freedom.
+
+```{r}
+adder <- data.frame(Locality = c("Uppsala", "In-Fredeln", "Inre Hammnskar", "Norrpada",
+                                 "Karringboskar", "Angskar", "SvenskaHagarna"), 
+                    SampleSize = c(21, 34, 20, 25, 7, 82, 48), 
+                    meanRHL = c(-6.98, -4.24, -2.79, 2.22, 1.27, 1.88, 4.98))
+```
+
+Consider the question: "Is the _average of the mean relative head lengths for snakes on the Swedish mainland_ equal to the _average of the mean relative head lengths for snakes on islands in the Baltic Sea_?" Uppsala is the mainland, and the other six localities refer to islands in the Baltic Sea.
+
+
+
+### (a) (3 points) Write out the coefficients for the linear combination you would use to test this question, and state the null hypothesis you would be testing using statistical notation.
+
+<!-- Write out the coefficients for the linear combination -->
+The coefficients for the linear combination are:
+
+C1 = 1
+C2 = -(1/6), C3 = -(1/6), C4 = -(1/6), C5 = -(1/6), C6 = -(1/6), C7 = -(1/6).
+
+<!-- State the hypotheses -->
+Null Hypothesis: $H_0: 1\mu_1 - (1/6)*(\mu_2 + \mu_3 + \mu_4 + \mu_5 + \mu_6 + \mu_7) = 0$ (equivalent to $H_0 : \gamma = 0$) The _average of the mean relative head lengths for snakes on the Swedish mainland_ equal to the _average of the mean relative head lengths for snakes on islands in the Baltic Sea_
+
+Alternative Hypothesis: $H_A: 1\mu_1 - (1/6)*(\mu_2 + \mu_3 + \mu_4 + \mu_5 + \mu_6 + \mu_7) \neq 0$ (equivalent to $H_0 : \gamma \neq 0$). The _average of the mean relative head lengths for snakes on the Swedish mainland_ is not equal to the _average of the mean relative head lengths for snakes on islands in the Baltic Sea_
+
+
+### (b) (4 points) What is the $t$-statistic for testing the hypothesis in part (a)? Please include in your answer your computed values of $g$ and the standard error of $g$. Compute these values by hand.
+
+```{r}
+# meanRHL = c(-6.98, -4.24, -2.79, 2.22, 1.27, 1.88, 4.98)
+
+m1 <- -6.98
+m2 <- -4.24
+m3 <- -2.79
+m4 <- 2.22
+m5 <- 1.27
+m6 <- 1.88
+m7 <- 4.98 
+
+g <- 1*m1 - (1/6)*(m2+m3+m4+m5+m6+m7) 
+g
+
+# SampleSize = c(21, 34, 20, 25, 7, 82, 48)
+s1 <- 21
+s2 <- 34
+s3 <- 20
+s4 <- 25
+s5 <- 7
+s6 <- 82
+s7 <- 48
+
+# Given, pooled estimate of standard deviation of the RHL measurements
+# was 11.72 based on 230 degrees of freedom
+sp2 <- 11.72 ^ 2
+mainland <- (1*1)/(s1) 
+baltic_sea <- ((-1/6)^2) * ((1/s2) + (1/s3) + (1/s4) + (1/s5) + (1/s6) + (1/s7))
+
+SE <- sqrt(sp2 * (mainland + baltic_sea))
+SE
+
+t_statistic <- (g - 0) / SE
+t_statistic
+
+```
+
+
+### (c) (2 points) Find the resulting $p$-value and state your conclusion (Be sure to write a _complete_ conclusion for this test including all the relevant details and interpretations).
+
+```{r}
+# Given, 230 degrees of freedom
+p_value_5 <- 2 * (1 - pt(abs(-2.720557), df = 230))
+p_value_5
+```
+
+<!-- Write your conclusion in 2-4 sentences. -->
+The t-statistic value is $-2.720557$ and $p-value = 0.007015258$. We reject the null hypothesis since the $p-value = 0.007015258$ is less than the significance level ($0.05$ and $0.01$), in favor of alternative hypothesis. Therefore, we have sufficient evidence to conclude that the _average of the mean relative head lengths for snakes on the Swedish mainland_ is not equal to the _average of the mean relative head lengths for snakes on islands in the Baltic Sea_
+
+
+\newpage
+## Question 6 (12 points) - Modified from *Sleuth* 6.21
+
+Reconsider the education and future income data from your last homework (data: `ex0525`). Find $p$-values and 95% confidence intervals for the difference in means for all pairs of education groups in the following ways:
+
+### (a) (2 points) Using the Tukey-Kramer procedure.
+
+```{r}
+data(ex0525)
+
+Education_Mod <- lm(Income2005 ~ Educ, data = ex0525)
+
+Education_Tukey <- glht(Education_Mod, linfct = mcp(Educ = "Tukey"))
+
+summary(Education_Tukey)
+confint(Education_Tukey)
+```
+
+
+### (b) (2 points) Without adjusting for multiple comparisons.
+
+```{r}
+# Fisher's LSD (unadjusted)
+summary(Education_Tukey, test=adjusted("none"))
+confint(Education_Tukey, calpha = univariate_calpha())
+```
+
+
+### (c) (3 points) What do you notice by comparing these two methods? Discuss the differences in which pairwise comparisons are _significant_, how wide the confidence intervals are, and which confidence intervals contain 0.
+
+<!-- Write a short paragraph addressing this question -->
+
+_Differences in which pairwise comparisons are significant:_
+
+We can notice that if we did not use an adjustment procedure, Fisher's LSD (unadjusted), we would think all of the comparisons were significance at the $0.05$ level since all the $p$-values are less than $0.05$. But when we used the Tukey-Kramer adjustment, only eight of them were significant and remaining two are insignificant since their $p$-value is greater than $0.05$. 
+
+Therefore, we Tukey-Kramer adjustment gives some good values which makes it less likely to reject the null hypothesis based on the obtained $p$ values and has better pairwise comparisons than the Fisher's LSD (unadjusted).
+
+
+_How wide the confidence intervals are:_
+
+The confidence intervals are much wider in Tukey-Kramer procedure than that of Fisher's LSD (unadjusted) since the later procedure is done without adjustment. Compare the intervals of Tukey-Kramer with the Fisher's LSD (unadjusted) we notice that the point estimates are the same (as we expect), but the lower and upper bounds are changing. 
+
+For example, the lower-bounds and upper-bounds for the group (13-15 - 12 == 0) is (2057.1791, 13964.9423)in Tukey-Kramer whereas it is (3694.7196, 12327.4018) in Fisher's LSD (unadjusted) which shows us that the confidence intervals are wider in Tukey-Kramer procedure.
+
+
+_Which confidence intervals contain 0:_
+
+The groups (<12 - 12 == 0) and (>16 - 16 == 0) Tukey-Kramer procedure contains 0 in their confidence intervals. None of the groups from Fisher's LSD (unadjusted) contains 0 in their confidence intervals.
+
+
+
+### (d) (3 points) Use the Dunnett procedure to compare every other group to the group with 12 years of education. Look at both the $p$-values and confidence intervals. Which group means apparently differ from the mean for those with 12 years of education?
+
+```{r}
+levels(ex0525$Educ) # print levels before re-leveling
+ex0525$Educ <- relevel(ex0525$Educ, ref = "12")
+levels(ex0525$Educ) # print levels after re-leveling
+Education_Model <- lm(Income2005 ~ Educ, data = ex0525)
+
+Education_Dunnett <- glht(Education_Model, linfct = mcp(Educ = "Dunnett"))
+summary(Education_Dunnett)
+confint(Education_Dunnett)
+```
+
+<!-- Write a few sentences which answers the question, "Which group means apparently differ from the mean for those with 12 years of education?" -->
+The $p$-values for (13-15 - 12 == 0), (16 - 12 == 0), (>16 - 12 == 0) are all less than $0.05$ significance level and their respective group means differ from the mean for those with 12 years of education since the $p$-value and confidence interval for the group <12 - 12 are 0.11804 (>0.05 significance) and 0 respectively (whereas the rest of the groups have $p$-value < $0.05$ and confidence interval $\neq$ 0).
+
+Therefore, we have an evidence that groups have means are different ($p$-value < $0.05$ and confidence interval $\neq$ 0) with 12 years of education ($p$-values > 0.05, confidence interval contain 0). (Fail to reject null hypothesis: different means)
+
+### (e) (2 points) Taking all of these tests together, what general statements would you make about the relationship between Education and Income?
+
+<!-- Write a few sentences regarding what the relationship between Education and Income is based on the analysis you've conducted. This question is meant to address _how_ you use the information from your analysis so be specific and justify your findings with evidence based on your analysis -->
+Taking all of these tests together, we can say that the population mean 2005 incomes were not the same in all five education groups since the $p$-value is less than 0.05 and confidence interval contains 0 in both the Tukey-Kramer procedure and Dunnett procedure. In general, we can say that the education group with age (<12-12) has a different mean from the rest of the groups and will have less income compared to that of the other groups (based on the CI and $p$-value). 
+
+
+

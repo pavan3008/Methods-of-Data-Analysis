@@ -1,0 +1,83 @@
+---
+title: "st511-Report"
+author: "Pavan Sai Nallagoni"
+date: "Summer 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+data <- read.csv("ds_salaries.csv")
+
+```
+```{r}
+
+ggplot(data, aes(x=company_size, y=salary_in_usd)) + 
+  geom_boxplot(fill = "red", alpha = 0.5) +
+  labs(y = "Salary (in USD)", x = "Company Size") +
+  theme_bw() + 
+  ggtitle("Salary (in USD) based on the size of company")
+```
+
+## Histogram
+
+```{r}
+ggplot(data, aes(x = salary_in_usd)) +
+  geom_histogram( binwidth = 20000, color = "black", alpha = 0.5, fill = "red") +
+  ggtitle("Data Science Job Salaries (2020 - 2022) ") + xlab("Salary (in USD)")
+  
+```
+
+```{r}
+ggplot(data, aes(x = salary_in_usd)) +
+  geom_histogram( binwidth = 20000, color = "black", alpha = 0.5, fill = "red") +
+  ggtitle("Data Science Job Salaries (2020 - 2022) ") + xlab("Salary (in USD)") +
+  facet_wrap(~company_size, ncol = 1)
+```
+
+## Anova
+
+```{r}
+anova(lm(salary_in_usd ~ company_size, data=data))
+
+```
+
+
+## Krushkals
+
+```{r}
+anova(lm(salary_in_usd ~ (company_size == "S"), data = data))
+
+```
+
+## Including Plots
+```{r}
+
+size <- data$company_size
+sal <- data$salary_in_usd
+ggplot(data, aes(x = sal )) + geom_histogram(color = "white", bins = "30") +
+facet_wrap(~size, ncol = 2)
+
+ggplot(data, aes(x = salary_in_usd)) +
+  geom_histogram( binwidth = 20000, color = "black", alpha = 0.5, fill = "red") +
+  ggtitle("Data Science Job Salaries (2020 - 2022) ") + xlab("Salary (in USD)") 
+```
+
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
